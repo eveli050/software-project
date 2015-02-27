@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+  <head>
+         <meta charset="utf-8" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="msapplication-tap-highlight" content="no" />
+        <!-- WARNING: for iOS 7, remove the width=device-width and height=device-height attributes. See https://issues.apache.org/jira/browse/CB-4323 -->
+        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi" />
+        <link rel="stylesheet" type="text/css" href="css/index.css" />
+       <title>Markers example</title>
+
+    <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false&libraries=geometry"></script>
+<style>
+    html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#map-canvas {
+
+  width: 500px;
+  height: 300px;
+}
+
+
+</style>    
+  </head>
+  <!--<body onload="initialize()">-->
+  <body> 
+
+     <div class="app">
+            <div id="deviceready" class="blink">
+                <p class="event listening">Connecting to Device</p>
+                <p class="event received">Device is Ready to use</p>
+            </div>
+       
+       
+<div id="map-canvas"></div>
+
+<div style="float:left;"> Use your current location or enter address below: <br />
+<input type="text"  id="inputTextAddress"/>
+<input type="button" onclick="codeAddress()" id="inputButtonGeocode" value="click to Geocode"/>
+</div>
+
+<div style="float:left;"> Type: <br />
+<input type="checkbox" name="type" value="mountains" checked="checked"/>Mountains<br />
+<input type="checkbox" name="type" value="desert" checked="checked"/>Desert<br />
+</div> 
+
+<div style="float:left;"> Stars: <br />
+<input type="checkbox" name="stars" value="1" checked="checked"/>1<br />
+<input type="checkbox" name="stars" value="2" checked="checked"/>2<br />
+<input type="checkbox" name="stars" value="3" checked="checked"/>3<br />
+</div>   
+
+<div style="float:left;"> Within x km radius: <br />
+<input type="radio" name="radius" value="1" />1km<br />
+<input type="radio" name="radius" value="200" />2km<br />
+<input type="radio" name="radius" value="30000" />3km<br />
+</div> 
+
+<br />
+
+ </div>
+  <script type="text/javascript" src="cordova.js"></script>
+        <script type="text/javascript" src="js/index.js"></script>
+        <script type="text/javascript">
+            app.initialize();
+        </script>
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script> 
+    <script>
+
+var markersmap = [];
+var markers = [];   
+
+      var mycenter = new google.maps.LatLng(-25.363882,131.044922); //centre is currently in australia
+      var geocoder;
+
+      var mapOptions = {
+            zoom: 10,
+            center: mycenter, 
+            mapTypeId: google.maps.MapTypeId.ROADMAP
+          }
+
+      var map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
+
+function initialize() {
+
+      geocoder = new google.maps.Geocoder();
+         
+      $.ajax({
+        url: 'ajax.php',
+        dataType: 'json',
+        success: function(data){
+          $.each(data, function(data, res){
+            markers.push(res);
+          });
+
+          console.log(markers[0]);
+
+            
+               //uses the users' current location
+                if (navigator.geolocation) {
+                   navigator.geolocation.getCurrentPosition(function (position) {
+                     initialLocation = new google.maps.LatLng(position.coords.latitude, position.coords.longitude);
+                       map.setCenter(initialLocation);
+                       mycenter = initialLocation;
+                       //console.log(initialLocation);
+                   });
+                }
+
+
+              $.each(markers, function(i, m) {
+                                      markersmap[i] = new google.maps.Marker({
+                                      position: new google.maps.LatLng(m.lng,m.lat),
+                                      map: map}); 
+                                  });
+                  //console.log(map.getCenter());
+         
+                
+            }
+      }); //end of ajax call
+
+
+}
+
+
+function codeAddress(){
+
+   sAddress = document.getElementById("inputTextAddress").value;
+   geocoder.geocode({ 'address': sAddress }, function(results, status) {
+            if (status == google.maps.GeocoderStatus.OK) {
+              var geoAddress = results[0].geometry.location;
+                  mycenter = geoAddress;
+              map.setCenter(geoAddress);
+              var marker = new google.maps.Marker({
+              map: map,
+              position: geoAddress});
+            }else{
+              alert("Geocode wasnt successful for the following reason: "+status);
+            }
+        });
+ }
+
+
+google.maps.event.addDomListener(window, 'load', initialize);
+
+$("input").bind( "change", function() 
+{
+
+
+    $.each(markers, function(index, m) 
+    {  
+                      var targetLoc = new google.maps.LatLng(markers[index].lng,markers[index].lat);
+                       var distanceInkm = google.maps.geometry.spherical.computeDistanceBetween(mycenter,targetLoc)/1000; 
+                      console.log(distanceInkm); 
+
+
+                         if(
+                           (
+                            ($("input:radio[name='radius'][value='1']").is(':checked') && (distanceInkm < 1)) ||
+                            ($("input:radio[name='radius'][value='200']").is(':checked') && (distanceInkm < 200)) ||
+                            ($("input:radio[name='radius'][value='30000']").is(':checked') && (distanceInkm < 30000))
+                          ) &&
+
+                           $("input:checkbox[name='stars'][value='"+m.stars+"']").is(':checked') &&
+                          (
+                          ($.inArray('mountains',m.type)>-1 && $("input:checkbox[name='type'][value='mountains']").is(':checked')) ||
+                          ($.inArray('desert',m.type)>-1 && $("input:checkbox[name='type'][value='desert']").is(':checked'))
+                          )
+
+                          )
+                          {
+                              markersmap[index].setVisible(true);
+                          } 
+                          else
+                          {
+                              markersmap[index].setVisible(false);
+                          }
+                
+
+    })  
+});
+
+</script>    
+
+
+  </body>
+
+
+</html>
